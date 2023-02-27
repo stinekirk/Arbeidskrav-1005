@@ -1,0 +1,88 @@
+---
+title: "Arbeidskrav-2"
+
+author: “[8]”
+
+format: pdf
+
+echo: true
+
+output: true
+
+editor: visual
+---
+
+## Arbeidskrav 2
+
+```{r}
+library(tidyverse)
+library(rvest)  
+library(janitor) 
+library(lubridate) 
+library(quantmod) 
+```
+
+```{r}
+url <- "https://www.motor.no/aktuelt/motors-store-vintertest-av-rekkevidde-pa-elbiler/217132"
+
+url <- url %>%
+   read_html() %>% 
+   html_nodes("table") %>%  
+   html_table() %>% .[[1]]  %>% head(34)
+names(url) <- c("Modell (temp. varierte fra 0° til -10°)", "WLTP-tall", "STOPP", "Avvik")
+```
+
+```{r}
+table <- url %>%
+  select(c("Modell (temp. varierte fra 0° til -10°)", "WLTP-tall", "STOPP"))
+```
+
+```{r}
+table$STOPP <- gsub("x", "", table$STOPP)
+```
+
+```{r}
+table$STOPP <- gsub("STOPP", "", table$STOPP)
+table$`WLTP-tall` <- gsub("WLTP-tall", "", table$`WLTP-tall`)
+```
+
+```{r}
+table <- table %>%
+  separate('WLTP-tall', into=c("WLTP-km", "WLTP-kwh"), sep="/") %>%
+  separate("WLTP-km", into = "WLTP-km", sep=" ") %>%
+  separate("STOPP", into=c("STOPP-km"), sep=" ")
+```
+
+```{r}
+table$`STOPP-km` <- as.numeric(table$`STOPP-km`)
+table$`WLTP-km` <- as.numeric(table$`WLTP-km`)
+```
+
+```{r}
+table  %>%
+  ggplot(aes(x=`WLTP-km`, y=`STOPP-km`))+
+  geom_point(col="blue") +
+  ggtitle("The relationship between WLTP-tall og STOPP")+
+  plot(table)                         
+abline(coef = c(0, 1),
+      col = "red",
+       lwd = 1.5)
+  
+
+
+#Kode hentet fra: https://statisticsglobe.com/add-diagonal-line-plot-r
+```
+
+By looking at the graph, we can see that there are big differences between how the cars were supposed to go, and how long the car actually ended up going. We can see that most of the cars stopped earlier than the expected length.
+
+```{r}
+ 
+lm(`STOPP-km` ~ `WLTP-km`, data = table)
+```
+
+The numbers tell something about the deviations.
+
+```{r}
+
+lm(`STOPP-km` ~ `WLTP-km`, data = table) + geom_smooth(method = lm)
+```
